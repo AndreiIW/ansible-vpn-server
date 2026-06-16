@@ -1,0 +1,7 @@
+---
+- hosts: "servers_vpn"
+  name: "Предварительная настройка сервера"
+  roles:
+    - common_programs
+
+# Пример запуска ansible-playbook prepare.yml
