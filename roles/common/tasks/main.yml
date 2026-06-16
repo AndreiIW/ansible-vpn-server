@@ -1,0 +1,36 @@
+---
+
+- name: Установка необходимых программ.
+  apt:
+    state: present
+    update_cache: yes
+    name: "{{ item }}"
+  loop:
+    - curl
+    - mc
+    - vim
+    - ncdu
+    - bash-completion
+    - tree
+  when: ansible_facts['pkg_mgr']|lower == 'apt'
+
+- name: Добавление пользователя
+  user:
+    name: "{{ server_user }}"
+    shell: /bin/bash
+    groups: adm, sudo
+
+- name: Добавление пользователю публичного ключа
+  authorized_key:
+    user: "{{ server_user }}"
+    state: present
+    key: "{{ lookup('file', server_user_ssh_key_path) }}"
+    comment: Ansible key
+
+- name: Обновление sudoers.d
+  template:
+    src: user.j2
+    dest: "/etc/sudoers.d/{{ server_user }}"
+    owner: root
+    group: root
+    mode: "0440"
