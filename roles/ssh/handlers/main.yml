@@ -1,0 +1,14 @@
+---
+# handlers file for roles/ssh
+
+- name: Проверка ssh конфигурации на ошибки
+  shell: "sshd -t"
+  listen: ssh:check
+  notify: ssh:restart
+
+- name: Перезапуск службы ssh
+  service:
+    name: "ssh"
+    state: restarted
+    enabled: yes
+  listen: ssh:restart

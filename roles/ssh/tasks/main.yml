@@ -1,0 +1,13 @@
+---
+- name: Конфигурирование доступа по ssh
+  copy:
+    src: "{{ item }}"
+    dest: /etc/ssh/sshd_config.d/
+    owner: root
+    group: root
+    mode: 0600
+  loop:
+      - 50-cloud-init.conf
+      - 51-disable-password.conf
+  notify: ssh:check
+  tags: ssh
