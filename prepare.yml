@@ -1,0 +1,5 @@
+---
+- hosts: "servers_vpn"
+  name: "Предварительная настройка сервера"
+  roles:
+    - common

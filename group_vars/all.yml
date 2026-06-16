@@ -1,0 +1,6 @@
+---
+
+# имя пользователя которое создаться на сервере
+server_user: test
+# адрес публичного ключа пользователя
+server_user_ssh_key_path: "{{ playbook_dir }}/key/public-key.pub"
