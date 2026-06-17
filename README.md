@@ -8,16 +8,16 @@
 # Запуск подготовки сервера
 
 ```shell
-ansible-playbook prepare.yml -u root --ask-pass
+ansible-playbook 1-prepare.yml -u root --ask-pass
 ```
 Где:
 * prepare.yml - запускает роль настройки нужных программ
 * -u имя пользователя root, от которого запускаем playbook
 
 # Полный запуск
-ansible-playbook full-install.yml
+ansible-playbook 2-full-install.yml
 
 или отдельно по тэгам
 
-ansible-playbook full-install.yml -t ssh
+ansible-playbook 2-full-install.yml -t ssh
 
