@@ -1,0 +1,23 @@
+---
+
+- name: Устанавливаем пакеты с русскм языком
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name:
+      - language-pack-ru
+      - console-cyrillic
+  tags: locale
+
+- name: Генерируем русскую локаль ru_RU.UTF-8
+  community.general.locale_gen:
+    name: ru_RU.UTF-8
+    state: present
+  tags: locale
+
+- name: Устанавливаем русскую локаль по умолчанию
+  command:
+    cmd: update-locale LANG=ru_RU.UTF-8
+  changed_when: false
+  tags: locale
