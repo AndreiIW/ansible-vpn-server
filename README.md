@@ -15,9 +15,9 @@ ansible-playbook 1-prepare.yml -u root --ask-pass
 * -u имя пользователя root, от которого запускаем playbook
 
 # Полный запуск
-ansible-playbook 2-full-install.yml
+ansible-playbook 2-base-setup-server.yml
 
 или отдельно по тэгам
 
-ansible-playbook 2-full-install.yml -t ssh
+ansible-playbook 2-base-setup-server.yml -t ssh
 

@@ -7,3 +7,4 @@
   roles:
     - ssh
     - locale
+    - journald_retention

@@ -1,0 +1,6 @@
+---
+- name: Перезапуск службы systemd-journald
+  systemd:
+    name: systemd-journald
+    state: restarted
+  listen: systemd-journald:restart
