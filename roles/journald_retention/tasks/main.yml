@@ -9,10 +9,8 @@
 
 - name: Настроиваем срок хранения журналов
   copy:
+    src: retention.conf
     dest: /etc/systemd/journald.conf.d/retention.conf
-    content: |
-      [Journal]
-      MaxRetentionSec=3day
     mode: "0644"
   notify: systemd-journald:restart
   tags: journald_retention
