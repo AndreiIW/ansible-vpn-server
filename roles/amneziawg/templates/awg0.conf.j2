@@ -1,0 +1,22 @@
+[Interface]
+Address = {{ awg_server_ip }}
+ListenPort = {{ awg_port }}
+PrivateKey = {{ server_private_key }}
+Jc = {{ awg_jc }}
+Jmin = {{ awg_jmin }}
+Jmax = {{ awg_jmax }}
+S1 = {{ awg_s1 }}
+S2 = {{ awg_s2 }}
+H1 = {{ awg_h1 }}
+H2 = {{ awg_h2 }}
+H3 = {{ awg_h3 }}
+H4 = {{ awg_h4 }}
+PostUp = iptables -I INPUT -p udp --dport {{ awg_port }} -j ACCEPT
+PostUp = iptables -I FORWARD -i {{ ansible_default_ipv4.interface }} -o awg0 -j ACCEPT
+PostUp = iptables -I FORWARD -i awg0 -j ACCEPT
+PostUp = iptables -t nat -A POSTROUTING -o {{ ansible_default_ipv4.interface }} -j MASQUERADE
+PostDown = iptables -D INPUT -p udp --dport {{ awg_port }} -j ACCEPT
+PostDown = iptables -D FORWARD -i {{ ansible_default_ipv4.interface }} -o awg0 -j ACCEPT
+PostDown = iptables -D FORWARD -i awg0 -j ACCEPT
+PostDown = iptables -t nat -D POSTROUTING -o {{ ansible_default_ipv4.interface }} -j MASQUERADE
+

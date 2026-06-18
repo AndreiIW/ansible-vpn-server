@@ -1,0 +1,123 @@
+---
+
+- name: Включение форвардинга IPv4
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+  tags: amneziawg
+
+- name: Установка базовых зависимостей для AmneziaWG
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - ca-certificates
+    - gnupg
+    - software-properties-common
+    - iptables
+    - iproute2
+    - qrencode
+    - curl
+    - apt-transport-https
+  tags: amneziawg
+
+- name: Добавление PPA-репозитория AmneziaWG
+  deb822_repository:
+    name: amneziawg
+    types: deb
+    uris: https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu
+    suites: noble
+    components: main
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x57290828
+    state: present
+  tags: amneziawg
+
+- name: Обновление APT-кэша после добавления репозитория AmneziaWG
+  apt:
+    update_cache: yes
+  tags: amneziawg
+
+- name: Установка пакетов AmneziaWG
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - amneziawg-dkms
+    - amneziawg-tools
+  tags: amneziawg
+
+- name: Создание директории для конфигураций AmneziaWG
+  file:
+    path: /etc/amnezia/amneziawg
+    state: directory
+    mode: '0700'
+
+- name: Проверка наличия существующего конфигурационного файла awg0.conf
+  stat:
+    path: /etc/amnezia/amneziawg/awg0.conf
+  register: awg_conf_file
+
+- name: Генерация нового приватного ключа сервера AmneziaWG
+  command: awg genkey
+  register: new_private_key_gen
+  when: not awg_conf_file.stat.exists
+  changed_when: false
+
+- name: Установка переменной для нового приватного ключа
+  set_fact:
+    server_private_key: "{{ new_private_key_gen.stdout | trim }}"
+  when: not awg_conf_file.stat.exists
+
+- name: Генерация публичного ключа сервера AmneziaWG из приватного
+  shell: "echo '{{ server_private_key }}' | awg pubkey"
+  register: server_pub_key_gen
+  changed_when: false
+
+- name: Установка переменной публичного ключа сервера AmneziaWG
+  set_fact:
+    server_public_key: "{{ server_pub_key_gen.stdout | trim }}"
+
+- name: Генерация случайного порта для сервера AmneziaWG
+  ansible.builtin.set_fact:
+    awg_port: "{{ 65001 | ansible.builtin.random(start=61000) }}"
+  when: not awg_conf_file.stat.exists
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- name: Генерация конфигурации сервера
+  template:
+    src: awg0.conf.j2
+    dest: /etc/amnezia/amneziawg/awg0.conf
+    mode: '0600'
+    force: no # КРИТИЧНО: Если файл создался скриптом/панелью, Ansible его НЕ тронет
+#  notify: Restart AmneziaWG
+  when: not awg_conf_file.stat.exists
+
+
+
+
+
+
