@@ -16,19 +16,3 @@ server_user_ssh_key_path: "{{ playbook_dir }}/key/public-key.pub"
 awg_server_network: "10.66.66.0/24"
 awg_server_ip: "10.66.66.1/24"
 awg_client_ip: "10.66.66.2/32"
-
-# Параметры обфускации AmneziaWG. Значения взяты по умолчанию, но если РКН будет блочить трафик, эти значения стоит поменять.
-awg_jc: 120
-awg_jmin: 23
-awg_jmax: 911
-awg_s1: 0
-awg_s2: 0
-awg_h1: 1
-awg_h2: 2
-awg_h3: 3
-awg_h4: 4
-
-
-
-
-

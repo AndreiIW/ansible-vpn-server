@@ -106,11 +106,49 @@
         client_preshared_key: "{{ psk_cmd.stdout | trim }}"
   when: not awg_conf_file.stat.exists
 
-- name: Генерация ключей первого клиента
+- name: Генерация конфигурационных файлов AmneziaWG 
   block:
-    - name: Генерация случайного порта для сервера AmneziaWG
+    - name: Инициализация случайных параметров
+      set_fact:
+        awg_port: "{{ range(61000, 65000) | random }}"
+        awg_jc: "{{ range(3, 12) | random }}"
+        awg_jmin: "{{ range(30, 80) | random }}"
+        awg_jmax: "{{ range(600, 1100) | random }}"
+        awg_s1: "{{ range(15, 150) | random }}"
+        awg_s2: "{{ range(15, 150) | random }}"
+        awg_s3: "{{ range(15, 150) | random }}"
+        awg_s4: "{{ range(15, 150) | random }}"
+
+    - name: Генерация диапазона H1
+      set_fact:
+        h1_min: "{{ range(1000, 10000000) | random }}"
+    - set_fact:
+        h1_max: "{{ range((h1_min | int + 100000000), (h1_min | int + 300000000)) | random }}"
+
+    - name: Генерация диапазона H2
+      set_fact:
+        h2_min: "{{ range((h1_max | int + 10000000), (h1_max | int + 60000000)) | random }}"
+    - set_fact:
+        h2_max: "{{ range((h2_min | int + 100000000), (h2_min | int + 300000000)) | random }}"
+
+    - name: Генерация диапазона H3
+      set_fact:
+        h3_min: "{{ range((h2_max | int + 10000000), (h2_max | int + 60000000)) | random }}"
+    - set_fact:
+        h3_max: "{{ range((h3_min | int + 100000000), (h3_min | int + 300000000)) | random }}"
+
+    - name: Генерация диапазона H4
+      set_fact:
+        h4_min: "{{ range((h3_max | int + 10000000), (h3_max | int + 60000000)) | random }}"
+    - set_fact:
+        h4_max: "{{ range((h4_min | int + 100000000), (h4_min | int + 300000000)) | random }}"
+
+    - name: Формируем переменные с случайными диапазонами H1-H4 для AmneziaWG
       ansible.builtin.set_fact:
-        awg_port: "{{ 65001 | ansible.builtin.random(start=61000) }}"
+        awg_h1_range: "{{ h1_min }}-{{ h1_max }}"
+        awg_h2_range: "{{ h2_min }}-{{ h2_max }}"
+        awg_h3_range: "{{ h3_min }}-{{ h3_max }}"
+        awg_h4_range: "{{ h4_min }}-{{ h4_max }}"
 
     - name: Генерация конфигурации сервера
       template:
@@ -119,4 +157,11 @@
         mode: '0600'
         force: no
     #  notify: Restart AmneziaWG
+
+    - name: Создание файла params
+      template:
+        src: params.j2
+        dest: /etc/amnezia/amneziawg/params
+        mode: '0600'
+
   when: not awg_conf_file.stat.exists
