@@ -64,60 +64,59 @@
     path: /etc/amnezia/amneziawg/awg0.conf
   register: awg_conf_file
 
-- name: Генерация нового приватного ключа сервера AmneziaWG
-  command: awg genkey
-  register: new_private_key_gen
-  when: not awg_conf_file.stat.exists
-  changed_when: false
+- name: Генерация ключей сервра
+  block:
+    - name: Генерация приватного ключа сервера
+      command: awg genkey
+      register: new_private_key_gen
+      changed_when: false
 
-- name: Установка переменной для нового приватного ключа
-  set_fact:
-    server_private_key: "{{ new_private_key_gen.stdout | trim }}"
-  when: not awg_conf_file.stat.exists
+    - name: Генерация публичного ключа сервера из приватного
+      shell: "echo '{{ new_private_key_gen.stdout }}' | awg pubkey"
+      register: server_pub_key_gen
+      changed_when: false
 
-- name: Генерация публичного ключа сервера AmneziaWG из приватного
-  shell: "echo '{{ server_private_key }}' | awg pubkey"
-  register: server_pub_key_gen
-  changed_when: false
-
-- name: Установка переменной публичного ключа сервера AmneziaWG
-  set_fact:
-    server_public_key: "{{ server_pub_key_gen.stdout | trim }}"
-
-- name: Генерация случайного порта для сервера AmneziaWG
-  ansible.builtin.set_fact:
-    awg_port: "{{ 65001 | ansible.builtin.random(start=61000) }}"
+    - name: Установка переменных ключей сервера
+      set_fact:
+        server_private_key: "{{ new_private_key_gen.stdout | trim }}"
+        server_public_key: "{{ server_pub_key_gen.stdout | trim }}"
   when: not awg_conf_file.stat.exists
 
+- name: Генерация ключей первого клиента
+  block:
+    - name: Генерация приватного ключа клиента
+      command: awg genkey
+      register: client_priv_key_gen
+      changed_when: false
 
+    - name: Генерация публичного ключа клиента
+      shell: "echo '{{ client_priv_key_gen.stdout }}' | awg pubkey"
+      register: client_pub_key_gen
+      changed_when: false
 
+    - name: Генерация pre-shared ключа клиента
+      shell: awg genpsk
+      register: psk_cmd
+      changed_when: false
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- name: Генерация конфигурации сервера
-  template:
-    src: awg0.conf.j2
-    dest: /etc/amnezia/amneziawg/awg0.conf
-    mode: '0600'
-    force: no # КРИТИЧНО: Если файл создался скриптом/панелью, Ansible его НЕ тронет
-#  notify: Restart AmneziaWG
+    - name: Установка переменных ключей клиента
+      set_fact:
+        client_private_key: "{{ client_priv_key_gen.stdout | trim }}"
+        client_public_key: "{{ client_pub_key_gen.stdout | trim }}"
+        client_preshared_key: "{{ psk_cmd.stdout | trim }}"
   when: not awg_conf_file.stat.exists
 
+- name: Генерация ключей первого клиента
+  block:
+    - name: Генерация случайного порта для сервера AmneziaWG
+      ansible.builtin.set_fact:
+        awg_port: "{{ 65001 | ansible.builtin.random(start=61000) }}"
 
-
-
-
-
+    - name: Генерация конфигурации сервера
+      template:
+        src: awg0.conf.j2
+        dest: /etc/amnezia/amneziawg/awg0.conf
+        mode: '0600'
+        force: no
+    #  notify: Restart AmneziaWG
+  when: not awg_conf_file.stat.exists

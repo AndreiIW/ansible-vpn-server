@@ -20,3 +20,8 @@ PostDown = iptables -D FORWARD -i {{ ansible_default_ipv4.interface }} -o awg0 -
 PostDown = iptables -D FORWARD -i awg0 -j ACCEPT
 PostDown = iptables -t nat -D POSTROUTING -o {{ ansible_default_ipv4.interface }} -j MASQUERADE
 
+[Peer]
+# Client 1
+PublicKey = {{ client_public_key }}
+PresharedKey = {{ client_preshared_key }}
+AllowedIPs = {{ awg_client_ip }}
