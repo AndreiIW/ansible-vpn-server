@@ -1,0 +1,5 @@
+# Allow amneziawg-web service to manage AWG state and peers.
+# Installed by amneziawg-web-install.sh – do not edit manually.
+awg-web ALL=(root) NOPASSWD: /usr/bin/awg show all dump, /usr/bin/awg set * peer * remove, /usr/bin/awg syncconf * /dev/stdin, /usr/bin/awg-quick strip *
+# Allow amneziawg-web to manage clients directly in Rust (read/rewrite config).
+awg-web ALL=(root) NOPASSWD: /usr/bin/cat -- /etc/amnezia/amneziawg/params, /usr/bin/cat -- /etc/amnezia/amneziawg/*.conf, /usr/bin/tee -- /etc/amnezia/amneziawg/*.conf, /usr/bin/tee -a -- /etc/amnezia/amneziawg/*.conf

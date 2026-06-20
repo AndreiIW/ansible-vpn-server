@@ -79,4 +79,59 @@
   #notify: Restart amneziawg-web
   tags: amneziawg-web
 
+- name: Установка скрипта совместимости (lifecycle script)
+  copy:
+    src: "/opt/amneziawg-install/amneziawg-install.sh"
+    dest: /usr/local/bin/amneziawg-install.sh
+    mode: '0755'
+    remote_src: yes
+  tags: amneziawg-web
 
+- name: Настройка Sudoers для amneziawg-web
+  copy:
+    src: amneziawg-web
+    dest: /etc/sudoers.d/amneziawg-web
+    mode: '0440'
+    validate: 'visudo -cf %s'
+  tags: amneziawg-web
+
+- name: Генерация Argon2 хэша пароля администратора
+  command:
+    cmd: python3 -c "import argon2; print(argon2.PasswordHasher().hash('{{ amneziawg_web_admin_pass }}'))"
+  register: admin_password_hash
+  changed_when: false
+  no_log: true
+  tags: amneziawg-web
+
+- name: Создание конфигурационного файла env.conf
+  template:
+    src: env.conf.j2
+    dest: "/etc/amneziawg-web/env.conf"
+    owner: awg-web
+    group: awg-web
+    mode: '0600'
+  #notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+- name: Создание файла-маркера расположения скрипта установки
+  copy:
+    src: "installed-awg-script.path"
+    dest: "/etc/amneziawg-web/installed-awg-script.path"
+    mode: '0644'
+  tags: amneziawg-web
+
+- name: Создание конфигурации systemd сервиса
+  template:
+    src: amneziawg-web.service.j2
+    dest: /etc/systemd/system/amneziawg-web.service
+    mode: '0644'
+  #notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+- name: Запуск и добавление в автозагрузку сервиса amneziawg-web
+  systemd:
+    name: amneziawg-web
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: amneziawg-web
