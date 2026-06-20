@@ -9,7 +9,7 @@
     reload: yes
   tags: amneziawg
 
-- name: Установка базовых зависимостей для AmneziaWG
+- name: Установка зависимостей для AmneziaWG
   apt:
     update_cache: yes
     cache_valid_time: 3600
@@ -42,7 +42,7 @@
     update_cache: yes
   tags: amneziawg
 
-- name: Установка пакетов AmneziaWG
+- name: Установка AmneziaWG
   apt:
     update_cache: yes
     cache_valid_time: 3600
@@ -185,7 +185,7 @@
     mode: '0755'
   tags: amneziawg
 
-- name: Копирую файл override.conf с загрузкой модуля ядра
+- name: Копирую override.conf с загрузкой модуля ядра
   copy:
     src: override.conf
     dest: "/etc/systemd/system/awg-quick@awg0.service.d/override.conf"
@@ -195,7 +195,7 @@
   notify: Reload systemd
   tags: amneziawg
 
-- name: Создаю основной юнит-шаблон awg-quick@.service
+- name: Создаю службу awg-quick@.service
   copy:
     src: awg-quick@.service
     dest: /usr/lib/systemd/system/awg-quick@.service
