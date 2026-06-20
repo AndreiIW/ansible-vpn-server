@@ -95,11 +95,63 @@
     validate: 'visudo -cf %s'
   tags: amneziawg-web
 
-- name: Генерация Argon2 хэша пароля администратора
+- name: Проверка существует ли env.conf с хешем пароля
+  stat:
+    path: /etc/amneziawg-web/env.conf
+  register: env_conf_stat
+  tags: amneziawg-web
+
+- name: Чтение существующего env.conf
+  slurp:
+    src: /etc/amneziawg-web/env.conf
+  register: env_conf_content
+  when: env_conf_stat.stat.exists
+  tags: amneziawg-web
+
+- name: Извлечение текущего хеша пароля
+  set_fact:
+    existing_password_hash: "{{ (env_conf_content.content | b64decode).split('\n') | select('match', '^AUTH_PASSWORD_HASH=') | map('regex_replace', '^AUTH_PASSWORD_HASH=', '') | first | default('') }}"
+  when: env_conf_stat.stat.exists
+  tags: amneziawg-web
+
+- name: Проверка, подходит ли существующий хеш к паролю
+  command:
+    argv:
+      - python3
+      - -c
+      - "import argon2, sys; argon2.PasswordHasher().verify(sys.argv[1], sys.argv[2])"
+      - "{{ existing_password_hash }}"
+      - "{{ amneziawg_web_admin_pass }}"
+  register: password_verify
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: existing_password_hash | default('') | length > 0
+  tags: amneziawg-web
+
+- name: Генерация Argon2-хеша пароля администратора (только если нужен)
   command:
     cmd: python3 -c "import argon2; print(argon2.PasswordHasher().hash('{{ amneziawg_web_admin_pass }}'))"
-  register: admin_password_hash
+  register: new_password_hash
   changed_when: false
+  no_log: true
+  when: >
+    existing_password_hash | default('') | trim | length == 0
+    or password_verify.rc | default(1) != 0
+  tags: amneziawg-web
+
+- name: Установка итогового хеша
+  set_fact:
+    admin_password_hash_final: >-
+      {{
+        new_password_hash.stdout
+        if (
+          new_password_hash is defined
+          and not (new_password_hash.skipped | default(false))
+          and new_password_hash.stdout is defined
+        )
+        else existing_password_hash
+      }}
   no_log: true
   tags: amneziawg-web
 

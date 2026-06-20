@@ -21,6 +21,3 @@ awg_client_ip: "10.66.66.2/32"
 # Учетные данные админа для web управления пользователями AmneziaWG (обязательно измените при использовании!)
 amneziawg_web_admin_user: "admin"
 amneziawg_web_admin_pass: "adminpass"
-
-
-
