@@ -150,18 +150,59 @@
         awg_h3_range: "{{ h3_min }}-{{ h3_max }}"
         awg_h4_range: "{{ h4_min }}-{{ h4_max }}"
 
-    - name: Генерация конфигурации сервера
-      template:
-        src: awg0.conf.j2
-        dest: /etc/amnezia/amneziawg/awg0.conf
-        mode: '0600'
-        force: no
-    #  notify: Restart AmneziaWG
-
     - name: Создание файла params
       template:
         src: params.j2
         dest: /etc/amnezia/amneziawg/params
         mode: '0600'
 
+    - name: Генерация конфигурации сервера
+      template:
+        src: awg0.conf.j2
+        dest: /etc/amnezia/amneziawg/awg0.conf
+        mode: '0600'
+    #  notify: Restart AmneziaWG
+
+    - name: Генерация конфигурации клиента
+      template:
+        src: client.conf.j2
+        dest: "~/client.conf"
+        mode: '0600'
+      become: no
+
   when: not awg_conf_file.stat.exists
+
+- name: Создаём директорию для службы AmneziaWG
+  file:
+    path: "/etc/systemd/system/awg-quick@awg0.service.d"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Копирую файл override.conf с загрузкой модуля ядра
+  copy:
+    src: override.conf
+    dest: "/etc/systemd/system/awg-quick@awg0.service.d/override.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Создаю основной юнит-шаблон awg-quick@.service
+  copy:
+    src: awg-quick@.service
+    dest: /usr/lib/systemd/system/awg-quick@.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Применение изменений в systemd (daemon-reload)
+  meta: flush_handlers
+
+- name: Включаю автозапуск и запускаю сервис AmneziaWG
+  systemd:
+    name: "awg-quick@awg0.service"
+    enabled: true
+    state: started

@@ -11,3 +11,6 @@
       - 51-disable-password.conf
   notify: ssh:check
   tags: ssh
+
+- name: Применение изменений ssh
+  meta: flush_handlers

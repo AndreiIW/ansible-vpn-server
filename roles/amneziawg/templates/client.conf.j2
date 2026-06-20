@@ -1,0 +1,21 @@
+[Interface]
+PrivateKey = {{ client_private_key }}
+Address = {{ awg_client_ip }}
+DNS = 8.8.8.8,8.8.4.4
+Jc = {{ awg_jc }}
+Jmin = {{ awg_jmin }}
+Jmax = {{ awg_jmax }}
+S1 = {{ awg_s1 }}
+S2 = {{ awg_s2 }}
+S3 = {{ awg_s3 }}
+S4 = {{ awg_s4 }}
+H1 = {{ awg_h1_range }}
+H2 = {{ awg_h2_range }}
+H3 = {{ awg_h3_range }}
+H4 = {{ awg_h4_range }}
+
+[Peer]
+PublicKey = {{ server_public_key }}
+PresharedKey = {{ client_preshared_key }}
+Endpoint = {{ ansible_host | default(ansible_facts["default_ipv4"]["address"]) }}:{{ awg_port }}
+AllowedIPs = 0.0.0.0/0
