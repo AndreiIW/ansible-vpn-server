@@ -6,3 +6,4 @@
   become_method: sudo
   roles:
     - amneziawg
+    - amneziawg_web

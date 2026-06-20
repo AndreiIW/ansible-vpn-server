@@ -1,0 +1,82 @@
+---
+
+- name: Установка зависимостей Web админки AmneziaWG
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - git
+    - curl
+    - build-essential
+    - python3
+    - python3-pip
+    - python3-argon2
+  tags: amneziawg-web
+
+- name: Создание системного пользователя awg-web
+  user:
+    name: awg-web
+    system: yes
+    create_home: no
+    shell: /usr/sbin/nologin
+  tags: amneziawg-web
+
+- name: Создание необходимых директорий
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - { path: "/var/lib/amneziawg-web", owner: "awg-web", group: "awg-web" }
+    - { path: "/etc/amneziawg-web" }
+    - { path: "/etc/amnezia/amneziawg", mode: "0751" } # Добавляем o+x (traverse permission)
+    - { path: "/etc/amnezia/amneziawg/clients", owner: "awg-web", group: "awg-web", mode: "0700" }
+  tags: amneziawg-web
+
+- name: Клонирование репозитория amneziawg-install
+  ansible.builtin.git:
+    repo: "https://github.com/wiresock/amneziawg-install.git"
+    dest: "/opt/amneziawg-install"
+    version: "main"
+    force: true
+  register: git_repo
+  tags: amneziawg-web
+
+- name: Устанавливаю свежую версию Rust с помощью официального скрипта rustup
+  ansible.builtin.shell: 
+    cmd: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+    creates: /root/.cargo/bin/cargo
+  environment:
+    RUSTUP_HOME: /root/.rustup
+    CARGO_HOME: /root/.cargo
+  tags: amneziawg-web
+
+- name: Проверяем, существует ли уже скомпилированный бинарный файл
+  ansible.builtin.stat:
+    path: "/opt/amneziawg-install/amneziawg-web/target/release/amneziawg-web"
+  register: ansible_builtin_stat_amneziawg
+  tags: amneziawg-web
+
+- name: Компиляция amneziawg-web (Rust)
+  command:
+    cmd: /root/.cargo/bin/cargo build --release
+    chdir: "/opt/amneziawg-install/amneziawg-web"
+  environment:
+    PATH: "/root/.cargo/bin:{{ ansible_facts.env.PATH }}"
+  when: git_repo.changed or not (ansible_builtin_stat_amneziawg.stat.exists | default(false))
+  tags: amneziawg-web
+
+- name: Установка скомпелированного бинарника amneziawg-web в систему Linux
+  copy:
+    src: "/opt/amneziawg-install/amneziawg-web/target/release/amneziawg-web"
+    dest: /usr/local/bin/amneziawg-web
+    mode: '0755'
+    remote_src: yes
+  #notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+
