@@ -58,11 +58,13 @@
     path: /etc/amnezia/amneziawg
     state: directory
     mode: '0700'
+  tags: amneziawg
 
 - name: Проверка наличия существующего конфигурационного файла awg0.conf
   stat:
     path: /etc/amnezia/amneziawg/awg0.conf
   register: awg_conf_file
+  tags: amneziawg
 
 - name: Генерация ключей сервра
   block:
@@ -81,6 +83,7 @@
         server_private_key: "{{ new_private_key_gen.stdout | trim }}"
         server_public_key: "{{ server_pub_key_gen.stdout | trim }}"
   when: not awg_conf_file.stat.exists
+  tags: amneziawg
 
 - name: Генерация ключей первого клиента
   block:
@@ -105,6 +108,7 @@
         client_public_key: "{{ client_pub_key_gen.stdout | trim }}"
         client_preshared_key: "{{ psk_cmd.stdout | trim }}"
   when: not awg_conf_file.stat.exists
+  tags: amneziawg
 
 - name: Генерация конфигурационных файлов AmneziaWG 
   block:
@@ -161,16 +165,16 @@
         src: awg0.conf.j2
         dest: /etc/amnezia/amneziawg/awg0.conf
         mode: '0600'
-    #  notify: Restart AmneziaWG
 
     - name: Генерация конфигурации клиента
       template:
         src: client.conf.j2
-        dest: "~/client.conf"
+        dest: "~/awg0-client-client.conf"
         mode: '0600'
       become: no
 
   when: not awg_conf_file.stat.exists
+  tags: amneziawg
 
 - name: Создаём директорию для службы AmneziaWG
   file:
@@ -179,6 +183,7 @@
     owner: root
     group: root
     mode: '0755'
+  tags: amneziawg
 
 - name: Копирую файл override.conf с загрузкой модуля ядра
   copy:
@@ -188,6 +193,7 @@
     group: root
     mode: '0644'
   notify: Reload systemd
+  tags: amneziawg
 
 - name: Создаю основной юнит-шаблон awg-quick@.service
   copy:
@@ -197,12 +203,15 @@
     group: root
     mode: '0644'
   notify: Reload systemd
+  tags: amneziawg
 
 - name: Применение изменений в systemd (daemon-reload)
   meta: flush_handlers
+  tags: amneziawg
 
 - name: Включаю автозапуск и запускаю сервис AmneziaWG
   systemd:
     name: "awg-quick@awg0.service"
     enabled: true
     state: started
+  tags: amneziawg

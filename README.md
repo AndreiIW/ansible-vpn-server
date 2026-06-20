@@ -23,6 +23,10 @@ ansible-playbook 2-base-setup-server.yml -t ssh
 
 
 
- ansible-playbook 3-vpn-and-mtproxy.yml
+
+ansible-playbook 3-vpn-and-mtproxy.yml
+
+
+
 
 
