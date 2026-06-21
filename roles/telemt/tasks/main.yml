@@ -1,0 +1,75 @@
+---
+
+- name: Установка зависимостей для telemt
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - curl
+    - tar
+    - jq
+    - openssl
+  tags: telemt
+
+- name: Создание группы telemt
+  group:
+    name: "telemt"
+    system: yes
+  tags: telemt
+
+- name: Создание системного пользователя telemt
+  user:
+    name: "telemt"
+    group: "telemt"
+    home: "/opt/telemt"
+    create_home: yes
+    system: yes
+    shell: /usr/sbin/nologin
+  tags: telemt
+
+- name: Создание директории для конфигурации telemt
+  file:
+    path: "/etc/telemt"
+    state: directory
+    owner: "telemt"
+    group: "telemt"
+    mode: '0750'
+  tags: telemt
+
+- name: Получение информации о последнем релизе с GitHub
+  uri:
+    url: "https://api.github.com/repos/telemt/telemt/releases/latest"
+    return_content: yes
+  register: _release_info
+  tags: telemt
+
+- name: Формирование ссылки для скачивания бинарного файла
+  set_fact:
+    telemt_dl_url: "https://github.com/telemt/telemt/releases/download/{{ _release_info.json.tag_name }}/telemt-x86_64-linux-gnu.tar.gz"
+  tags: telemt
+
+- name: Скачивание и распаковка Telemt в /usr/local/bin
+  unarchive:
+    src: "{{ telemt_dl_url }}"
+    dest: "/usr/local/bin"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  #notify: restart telemt
+  tags: telemt
+
+
+
+
+
+
+
+
+
+
+
+
+
