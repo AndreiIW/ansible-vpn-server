@@ -37,6 +37,39 @@
     - { path: "/etc/amnezia/amneziawg/clients", owner: "awg-web", group: "awg-web", mode: "0700" }
   tags: amneziawg-web
 
+- name: Поиск конфигураций awg*-client-*.conf в домашних директориях
+  find:
+    paths: "/home/{{ ansible_facts.env.SUDO_USER }}"
+    patterns: "awg*-client-*.conf"
+    file_type: file
+  register: found_client_configs
+  tags: amneziawg-web
+
+- name: Миграция обнаруженных конфигураций в системную директорию панели
+  copy:
+    src: "{{ item.path }}"
+    dest: "/etc/amnezia/amneziawg/clients/{{ item.path | basename }}"
+    owner: root
+    group: awg-web
+    mode: '0640'
+    remote_src: yes
+  loop: "{{ found_client_configs.files }}"
+  when: found_client_configs.matched > 0
+  loop_control:
+    label: "{{ item.path }}"
+  notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+- name: Удаление оригинальных конфигурационных файлов после успешной миграции
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ found_client_configs.files }}"
+  when: found_client_configs.matched > 0
+  loop_control:
+    label: "{{ item.path }}"
+  tags: amneziawg-web
+
 - name: Клонирование репозитория amneziawg-install
   ansible.builtin.git:
     repo: "https://github.com/wiresock/amneziawg-install.git"
