@@ -87,7 +87,13 @@
     not telemt_bin_stat.stat.exists or
     telemt_current_version is not defined or
     telemt_current_version != telemt_target_version
-  #notify: restart telemt
+  notify: restart telemt
+  tags: telemt
+
+- name: Проверка наличия конфигурационного файла telemt.toml
+  stat:
+    path: "/etc/telemt/telemt.toml"
+  register: telemt_config_stat
   tags: telemt
 
 - name: Создание конфигурации telemt.toml
@@ -107,7 +113,19 @@
         owner: "telemt"
         group: "telemt"
         mode: '0640'
-      #notify: restart telemt
-      
-  when: not telemt_bin_stat.stat.exists
+      notify: restart telemt
+
+  when: not telemt_config_stat.stat.exists
   tags: telemt
+
+- name: Создание systemd службы telemt
+  copy:
+    src: telemt.service
+    dest: /etc/systemd/system/telemt.service
+    owner: root
+    group: root
+    mode: '0644'
+  tags: telemt
+  notify:
+    - reload systemd
+    - restart telemt

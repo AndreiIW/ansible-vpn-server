@@ -24,3 +24,10 @@ ansible-playbook 2-base-setup-server.yml -t ssh
 
 ansible-playbook 3-vpn-and-mtproxy.yml
 
+ Telnet получение ссылки
+ curl -s http://127.0.0.1:9091/v1/users | jq -r '.data[] | "[\(.username)]", (.links.classic[]? | "classic: \(.)"), (.links.secure[]? | "secure: \(.)"), (.links.tls[]? | "tls: \(.)"), ""'
+
+ 
+
+
+
