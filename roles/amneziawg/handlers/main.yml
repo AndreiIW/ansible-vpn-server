@@ -1,0 +1,6 @@
+---
+
+- name: Перезапуск службы systemd
+  systemd:
+    daemon_reload: true
+  listen: Reload systemd

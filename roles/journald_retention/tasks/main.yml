@@ -14,3 +14,7 @@
     mode: "0644"
   notify: systemd-journald:restart
   tags: journald_retention
+
+- name: Применение изменений journald
+  meta: flush_handlers
+

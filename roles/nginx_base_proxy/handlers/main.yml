@@ -1,0 +1,13 @@
+---
+
+- name:  Проверка конфига nginx
+  shell: nginx -t
+  notify: restart nginx service
+  listen: nginx check config and restart
+
+- name: Перезапуск службы nginx
+  service:
+    name: nginx
+    state: restarted
+    enabled: yes
+  listen: restart nginx service

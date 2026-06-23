@@ -1,0 +1,11 @@
+---
+- name: Перезапуск службы systemd
+  systemd:
+    daemon_reload: yes
+  listen: reload systemd
+
+- name: Перезапуск службы telemt
+  systemd:
+    name: telemt
+    state: restarted
+  listen: restart telemt

@@ -1,0 +1,8 @@
+---
+
+- name: Перезапуск службы amneziawg-web
+  systemd:
+    name: amneziawg-web
+    state: restarted
+    daemon_reload: yes
+  listen: Restart amneziawg-web
