@@ -1,0 +1,29 @@
+---
+
+- name: Установка iptables-persistent
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    name: iptables-persistent
+    state: latest
+  tags: iptables
+
+- name: Копирование настроек iptables для ipv4
+  template:
+    src: "rules.v4.j2"
+    dest: /etc/iptables/rules.v4
+    owner: root
+    group: root
+    mode: '0644'
+  notify: test rules and restart
+  tags: iptables
+
+- name: Копирование настроек iptables для ipv6
+  copy:
+    src: rules.v6
+    dest: /etc/iptables/rules.v6
+    owner: root
+    group: root
+    mode: '0644'
+  notify: test rules and restart
+  tags: iptables

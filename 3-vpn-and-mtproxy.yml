@@ -1,6 +1,6 @@
 ---
 - hosts: "servers_vpn"
-  name: "Основная настройка сервера"
+  name: "Установка на сервер VPN и MTProxy для Telegram"
   remote_user: "{{ server_user }}"
   become: yes
   become_method: sudo
