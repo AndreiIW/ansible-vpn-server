@@ -19,7 +19,20 @@ awg_client_ip: "10.66.66.2/32"
 
 # Учетные данные админа для web управления пользователями AmneziaWG (обязательно измените при использовании!)
 amneziawg_web_admin_user: "admin"
-amneziawg_web_admin_pass: "adminpass"
+amneziawg_web_admin_pass: "12345678"
 
 # Доменное имя web управления пользователями AmneziaWG. Если оставить пустым, доступ будет по ip адресу.
 amneziawg_web_domain: ""
+
+# Если зананно доменное имя в переменной amneziawg_web_domain, то на этот домен выпишется SSL сертификат Let's Encrypt.
+# Иначе посмотрим на ip адрес. Если он белый, то Let's Encrypt выпишет на него сертификат. А если ip адрес из серой
+# bogon сети, тогда сгенерируется самоподписанный сертификат на IP адрес. 
+certbot_domain_name: "{{ amneziawg_web_domain }}" 
+certbot_email: "webmaster@{{ amneziawg_web_domain }}"
+
+# Данные для базовой авторизации
+nginx_auth_user: "admin"
+nginx_auth_password: "12345678"
+
+
+

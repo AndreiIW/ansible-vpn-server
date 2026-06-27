@@ -1,0 +1,79 @@
+---
+
+- name: Установка необходимых пакетов для Nginx SSL
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - nginx
+    - certbot
+    - python3-certbot-nginx
+    - apache2-utils
+    - openssl
+  tags: nginx_ssl_proxy
+
+
+- name: Вывод с сообщением (используя msg)
+  debug:
+    msg: "Значение переменной: {{ certbot_domain_name }}"
+  tags: nginx_ssl_proxy
+
+
+- name: Получение текущего IPv4 адреса
+  set_fact:
+    detected_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
+  when: certbot_domain_name is not defined or certbot_domain_name | length == 0
+  tags: nginx_ssl_proxy
+
+
+
+
+- name: Отладка сырого результата ipaddr
+  debug:
+    msg:
+      - "detected_ip: {{ detected_ip }}"
+      - "private raw: {{ detected_ip | ansible.utils.ipaddr('private') }}"
+      - "public raw: {{ detected_ip | ansible.utils.ipaddr('public') }}"
+      - "public type: {{ (detected_ip | ansible.utils.ipaddr('public')) | type_debug }}"
+  tags: nginx_ssl_proxy
+
+
+
+
+
+
+
+
+
+
+
+
+
+- name: Определение типа IP-адреса (Private / Public)
+  # Фильтр ipaddr возвращает сам IP, если условие совпадает, иначе False
+  set_fact:
+    ip_is_private: "{{ (detected_ip | ansible.utils.ipaddr('private')) != False }}"
+    ip_is_public: "{{ (detected_ip | ansible.utils.ipaddr('public')) != False }}"
+  when: certbot_domain_name is not defined or certbot_domain_name | length == 0
+  tags: nginx_ssl_proxy
+
+- name: Вывод с сообщением (используя msg)
+  debug:
+    msg: "Текущий ip: {{ detected_ip }}"
+  tags: nginx_ssl_proxy
+
+
+- name: Вывод с сообщением (используя msg)
+  debug:
+    msg: "Приватный ip: {{ ip_is_private }}"
+  tags: nginx_ssl_proxy
+
+
+- name: Вывод с сообщением (используя msg)
+  debug:
+    msg: "Публичный ip: {{ ip_is_public }}"
+  tags: nginx_ssl_proxy
+
+
