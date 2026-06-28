@@ -33,6 +33,3 @@ certbot_email: "webmaster@{{ amneziawg_web_domain }}"
 # Данные для базовой авторизации
 nginx_auth_user: "admin"
 nginx_auth_password: "12345678"
-
-
-
