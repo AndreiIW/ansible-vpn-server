@@ -14,7 +14,14 @@
     - bash-completion
     - tree
     - net-tools
+    - snapd
   when: ansible_facts['pkg_mgr']|lower == 'apt'
+
+- name: Включение systemd службы snapd
+  systemd:
+    name: snapd
+    state: started
+    enabled: yes
 
 - name: Добавление пользователя
   user:

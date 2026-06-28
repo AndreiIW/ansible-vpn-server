@@ -1,0 +1,159 @@
+---
+
+- name: Установка актуальной версии Certbot через snap
+  snap:
+    name: certbot
+    classic: yes
+  tags: nginx_ssl_proxy
+
+- name: Создание симлинка для Certbot
+  file:
+    src: /snap/bin/certbot
+    dest: /usr/bin/certbot
+    state: link
+  tags: nginx_ssl_proxy
+
+- name: Установка необходимых пакетов для Nginx SSL
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - nginx
+    - python3-passlib
+    - apache2-utils
+    - openssl
+  tags: nginx_ssl_proxy
+
+- name: Создание пользователя для базовой авторизации Nginx (.htpasswd)
+  htpasswd:
+    path: /etc/nginx/.htpasswd
+    name: "{{ nginx_auth_user }}"
+    password: "{{ nginx_auth_password }}"
+    owner: root
+    group: root
+    mode: '0644'
+  tags: nginx_ssl_proxy
+
+- name: Получение текущего IPv4 адреса
+  set_fact:
+    detected_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
+  when: certbot_domain_name is not defined or certbot_domain_name | length == 0
+  tags: nginx_ssl_proxy
+
+- name: Определение типа IP-адреса (Private / Public)
+  # Фильтр ipaddr возвращает сам IP, если условие совпадает, иначе False
+  set_fact:
+    ip_is_private: "{{ detected_ip | ansible.utils.ipaddr('private') or false }}"
+    ip_is_public: "{{ detected_ip | ansible.utils.ipaddr('public') or false }}"
+  when: certbot_domain_name is not defined or certbot_domain_name | length == 0
+  tags: nginx_ssl_proxy
+
+- name: Установка переменных если используется доменное имя
+  set_fact:
+    active_server_name: "{{ certbot_domain_name }}"
+    ssl_cert_path: "/etc/letsencrypt/live/{{ certbot_domain_name }}/fullchain.pem"
+    ssl_key_path: "/etc/letsencrypt/live/{{ certbot_domain_name }}/privkey.pem"
+    cert_mode: "domain"
+  when: certbot_domain_name is defined and certbot_domain_name | string | length > 0
+  tags: nginx_ssl_proxy
+
+- name: Установка переменных если используется ПУБЛИЧНЫЙ IP (Let's Encrypt)
+  set_fact:
+    active_server_name: "{{ detected_ip }}"
+    ssl_cert_path: "/etc/letsencrypt/live/{{ detected_ip }}/fullchain.pem"
+    ssl_key_path: "/etc/letsencrypt/live/{{ detected_ip }}/privkey.pem"
+    cert_mode: "public_ip"
+  when:
+    - certbot_domain_name is not defined or certbot_domain_name | length == 0 
+    - ip_is_public != false
+  tags: nginx_ssl_proxy
+
+- name: Если используется ПРИВАТНЫЙ IP (Самоподписанный)
+  block:
+
+    - name: Установка переменных если используется ПРИВАТНЫЙ IP (Самоподписанный)
+      set_fact:
+        active_server_name: "{{ detected_ip }}"
+        ssl_cert_path: "/etc/nginx/ssl/nginx-selfsigned.crt"
+        ssl_key_path: "/etc/nginx/ssl/nginx-selfsigned.key"
+        cert_mode: "self_signed"
+
+    - name: Создание директории для самоподписанных сертификатов
+      file:
+        path: "/etc/nginx/ssl"
+        state: directory
+        mode: '0755'
+
+    - name: Генерация самоподписанного сертификата
+      command: >
+        openssl req -x509 -nodes -days 3650 -newkey rsa:2048
+        -keyout {{ ssl_key_path }}
+        -out {{ ssl_cert_path }}
+        -subj "/C=RU/O=LocalServer/CN={{ active_server_name }}"
+      args:
+        creates: "{{ ssl_cert_path }}"
+
+  when:
+    - certbot_domain_name is not defined or certbot_domain_name | length == 0
+    - ip_is_private !=false
+  tags: nginx_ssl_proxy
+
+- name: Подготовка Let's Encrypt к использованию
+  block:
+
+    - name: Получение Let's Encrypt сертификата для домена
+      command: >
+        certbot certonly --nginx -d {{ active_server_name }} 
+        -m {{ certbot_email }} --agree-tos --non-interactive
+      args:
+        creates: "{{ ssl_cert_path }}"
+      when: cert_mode == "domain"
+
+    - name: Получение Let's Encrypt сертификата для ПУБЛИЧНОГО IP
+      command: >
+        certbot certonly --standalone 
+        --preferred-profile shortlived 
+        --ip-address {{ active_server_name }}
+        --pre-hook "systemctl stop nginx" 
+        --post-hook "systemctl start nginx"
+        -m {{ certbot_email }} --agree-tos --non-interactive
+      args:
+        creates: "{{ ssl_cert_path }}"
+      when: cert_mode == "public_ip"
+
+    - name: Копирование конфигурации nginx для Let's Encrypt
+      copy:
+        src: options-ssl-nginx.conf
+        dest: /etc/letsencrypt
+        mode: '0644'
+
+    - name: Генерация dhparams.pem для Let's Encrypt
+      command: openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048
+      args:
+        creates: /etc/letsencrypt/ssl-dhparams.pem
+
+  when: cert_mode == "domain" or cert_mode == "public_ip"
+  tags: nginx_ssl_proxy
+
+- name: Создание конфигурационного файла для прокси
+  template:
+    src: proxy.conf.j2
+    dest: /etc/nginx/sites-available/proxy.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: nginx check config and restart
+  tags: nginx_ssl_proxy
+
+- name: Активация конфигурации (создание симлинка)
+  file:
+    src: /etc/nginx/sites-available/proxy.conf
+    dest: /etc/nginx/sites-enabled/proxy.conf
+    state: link
+  notify: nginx check config and restart
+  tags: nginx_ssl_proxy
+
+- name: Применение изменений nginx
+  meta: flush_handlers

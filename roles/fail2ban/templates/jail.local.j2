@@ -1,0 +1,33 @@
+[DEFAULT]
+
+# Время бана по умолчанию (например, 1 час вместо 10 минут)
+bantime = 1h
+
+# Окно времени, за которое считаются попытки
+findtime = 15m
+
+# Количество попыток до бана
+maxretry = 3
+
+[sshd]
+enabled = true
+
+[recidive]
+enabled = true
+
+# Если забанен несколько раз за день — бан на неделю
+bantime = 1w
+findtime = 1d
+maxretry = 5
+
+
+[nginx-auth-fail]
+enabled  = true
+port     = http,https
+filter   = nginx-auth-fail
+logpath  = /var/log/nginx/amneziawg-web-access.log
+backend  = polling
+
+maxretry = 10
+findtime = 5m
+bantime  = 1d
