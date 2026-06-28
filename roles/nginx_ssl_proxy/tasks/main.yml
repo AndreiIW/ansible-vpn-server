@@ -1,5 +1,18 @@
 ---
 
+- name: Установка актуальной версии Certbot через snap
+  snap:
+    name: certbot
+    classic: yes
+  tags: nginx_ssl_proxy
+
+- name: Создание симлинка для Certbot
+  file:
+    src: /snap/bin/certbot
+    dest: /usr/bin/certbot
+    state: link
+  tags: nginx_ssl_proxy
+
 - name: Установка необходимых пакетов для Nginx SSL
   apt:
     update_cache: yes
@@ -8,8 +21,6 @@
     name: "{{ item }}"
   loop:
     - nginx
-    - certbot
-    - python3-certbot-nginx
     - python3-passlib
     - apache2-utils
     - openssl
@@ -44,7 +55,7 @@
     active_server_name: "{{ certbot_domain_name }}"
     ssl_cert_path: "/etc/letsencrypt/live/{{ certbot_domain_name }}/fullchain.pem"
     ssl_key_path: "/etc/letsencrypt/live/{{ certbot_domain_name }}/privkey.pem"
-    use_certbot: true
+    cert_mode: "domain"
   when: certbot_domain_name is defined and certbot_domain_name | string | length > 0
   tags: nginx_ssl_proxy
 
@@ -53,7 +64,7 @@
     active_server_name: "{{ detected_ip }}"
     ssl_cert_path: "/etc/letsencrypt/live/{{ detected_ip }}/fullchain.pem"
     ssl_key_path: "/etc/letsencrypt/live/{{ detected_ip }}/privkey.pem"
-    use_certbot: true
+    cert_mode: "public_ip"
   when: ip_is_public != false
   tags: nginx_ssl_proxy
 
@@ -65,7 +76,7 @@
         active_server_name: "{{ detected_ip }}"
         ssl_cert_path: "/etc/nginx/ssl/nginx-selfsigned.crt"
         ssl_key_path: "/etc/nginx/ssl/nginx-selfsigned.key"
-        use_certbot: false
+        cert_mode: "self_signed"
 
     - name: Создание директории для самоподписанных сертификатов
       file:
@@ -88,12 +99,25 @@
 - name: Подготовка Let's Encrypt к использованию
   block:
 
-    - name: Получение Let's Encrypt сертификата через certbot
+    - name: Получение Let's Encrypt сертификата для домена
       command: >
         certbot certonly --nginx -d {{ active_server_name }} 
         -m {{ certbot_email }} --agree-tos --non-interactive
       args:
         creates: "{{ ssl_cert_path }}"
+      when: cert_mode == "domain"
+
+    - name: Получение Let's Encrypt сертификата для ПУБЛИЧНОГО IP
+      command: >
+        certbot certonly --standalone 
+        --preferred-profile shortlived 
+        --ip-address {{ active_server_name }}
+        --pre-hook "systemctl stop nginx" 
+        --post-hook "systemctl start nginx"
+        -m {{ certbot_email }} --agree-tos --non-interactive
+      args:
+        creates: "{{ ssl_cert_path }}"
+      when: cert_mode == "public_ip"
 
     - name: Копирование конфигурации nginx для Let's Encrypt
       copy:
@@ -106,7 +130,7 @@
       args:
         creates: /etc/letsencrypt/ssl-dhparams.pem
 
-  when: use_certbot
+  when: cert_mode == "domain" or cert_mode == "public_ip"
   tags: nginx_ssl_proxy
 
 - name: Создание конфигурационного файла для прокси

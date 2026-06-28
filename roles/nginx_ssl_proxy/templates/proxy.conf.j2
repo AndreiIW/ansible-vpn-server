@@ -15,7 +15,7 @@ server {
     ssl_certificate {{ ssl_cert_path }};
     ssl_certificate_key {{ ssl_key_path }};
     
-{% if use_certbot %}
+{% if cert_mode == 'domain' or cert_mode == 'public_ip' %}
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 {% endif %}
