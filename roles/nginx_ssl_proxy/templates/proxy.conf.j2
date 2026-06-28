@@ -1,7 +1,7 @@
 server {
     server_name {{ active_server_name }};
-    access_log /var/log/nginx/{{ active_server_name }}-access.log;
-    error_log /var/log/nginx/{{ active_server_name }}-error.log;
+    access_log /var/log/nginx/amneziawg-web-access.log;
+    error_log /var/log/nginx/amneziawg-web-error.log;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
