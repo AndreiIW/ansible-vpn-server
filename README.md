@@ -2,8 +2,8 @@
 
 Данный Ansible Playbooks сможет полностью настроить ваш сервер, установив на наго следующее ПО
 
- - AmneziaWG с web админкой управления пользователями; [Проект AmneziaWG Installer](https://github.com/wiresock/amneziawg-install) 
- - Прокси сервер telemt для Telegram; [Проект telemt](https://github.com/telemt/telemt)
+ - AmneziaWG 2.0 с web админкой управления пользователями; [Проект AmneziaWG Installer](https://github.com/wiresock/amneziawg-install) 
+ - Прокси telemt для Telegram; [Проект telemt](https://github.com/telemt/telemt)
 
 Я взял их код за основу и написал этот Ansible Playbooks. Ребятам вырожаю огромную благодарность за их труд. Ansible playbook-и были написаны и протестированны для ОС Ubuntu 24.04.
 
@@ -45,7 +45,7 @@ ansible-playbook 1-prepare.yml -u root --ask-pass
 ```shell
 ansible-playbook 2-base-setup-server.yml
 ```
-Тут уже при запуске не нужно указывать пароль, так как дальше все playbook-и будут запускаться от вашего пользователя, созданный ранее. Тут мы настроим SSH, установим русский язык на сервер, да у программы journald уменьшим количество логов до 3-ёх дней. Так как обычно для VPN арендуют машинки с маленькими дисками, так что забивать их логами не очень разумно.
+Тут уже при запуске не нужно указывать пароль, так как дальше все playbook-и будут запускаться от вашего пользователя, созданный ранее. В этой части мы настроим SSH, установим русский язык на сервер, у программы journald уменьшим количество логов до 3-ёх дней. Так как обычно для VPN арендуют машинки с маленькими дисками забивать их логами не очень разумно.
 
 Кстати у каждой роли есть свой тэг, чтобы установить только конкретный пункт. К примеру запуск команды
 
@@ -64,7 +64,7 @@ ansible-playbook 3-vpn-and-mtproxy.yml
 ```shell
  curl -s http://127.0.0.1:9091/v1/users | jq -r '.data[] | "[\(.username)]", (.links.classic[]? | "classic: \(.)"), (.links.secure[]? | "secure: \(.)"), (.links.tls[]? | "tls: \(.)"), ""'
 ```
-Подробнее можно узнать в [репозитории telemt](https://github.com/telemt/telemt) . Для управления пользователями AmneziaWG можно зайти по ip адресу сервера или по его доменному имени.
+Подробнее можно узнать в [репозитории telemt](https://github.com/telemt/telemt/blob/main/docs/Quick_start/QUICK_START_GUIDE.ru.md) . Для управления пользователями AmneziaWG можно зайти по ip адресу сервера или по его доменному имени.
 
 ## Настройка защиты сервера
  
