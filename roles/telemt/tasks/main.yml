@@ -129,3 +129,11 @@
   notify:
     - reload systemd
     - restart telemt
+
+- name: Запуск и добавление в автозагрузку сервиса telemt
+  systemd:
+    name: telemt
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: telemt

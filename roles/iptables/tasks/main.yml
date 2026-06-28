@@ -27,3 +27,6 @@
     mode: '0644'
   notify: test rules and restart
   tags: iptables
+
+- name: Применение изменений iptables
+  meta: flush_handlers
