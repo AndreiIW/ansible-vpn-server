@@ -1,6 +1,15 @@
-# Необходимые условия для запуска автоматической настройки сервера
+# Ansible Playbooks
 
-Данная настройка сервера написана на Ansible, которая написана исключитльно для Linux. Так что на Linux должен быть установлен Ansible. Так же для корректной работы ansible.utils.ipaddr нужна дополнительная Python библиотека netaddr.
+Данный Ansible Playbooks сможет полностью настроить ваш сервер, установив на наго следующее ПО
+
+ - AmneziaWG с web админкой управления пользователями; [Проект AmneziaWG Installer](https://github.com/wiresock/amneziawg-install) 
+ - Прокси сервер telemt для Telegram; [Проект telemt](https://github.com/telemt/telemt)
+
+Я взял их код за основу и написал этот Ansible Playbooks. Ребятам вырожаю огромную благодарность за их труд. Ansible playbook-и были написаны и протестированны для ОС Ubuntu 24.04.
+
+## Требования к управляющей системе
+
+Данный Ansible Playbooks был написан на Ansible 2.21.0, однако скорее всего playbook-и запустятся и на других версиях Ansible. Так же для корректной работы модуля ansible.utils.ipaddr нужна дополнительная Python библиотека netaddr. Установить на управляющем компьютере можно с помощью команды:
 
 ```shell
 sudo apt install python3-netaddr
