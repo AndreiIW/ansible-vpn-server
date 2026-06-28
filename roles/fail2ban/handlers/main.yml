@@ -1,0 +1,8 @@
+---
+
+- name: Перезапуск службы fail2ban
+  service:
+    name: fail2ban
+    state: restarted
+    enabled: yes
+  listen: restart fail2ban service

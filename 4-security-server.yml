@@ -7,4 +7,4 @@
   roles:
     - iptables
     - nginx_ssl_proxy
-#    - fail2ban
+    - fail2ban
