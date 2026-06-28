@@ -1,0 +1,11 @@
+---
+- hosts: "servers_vpn"
+  name: "Установка на сервер VPN и MTProxy для Telegram"
+  remote_user: "{{ server_user }}"
+  become: yes
+  become_method: sudo
+  roles:
+    - amneziawg
+    - amneziawg_web
+    - nginx_base_proxy
+    - telemt

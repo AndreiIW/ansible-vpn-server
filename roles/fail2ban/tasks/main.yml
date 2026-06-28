@@ -1,0 +1,32 @@
+---
+
+- name: Установка fail2ban
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    name: fail2ban
+    state: latest
+  tags: fail2ban
+
+- name: Создание общих правил для fail2ban
+  template:
+    src: "jail.local.j2"
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart fail2ban service
+  tags: fail2ban
+
+- name: Копирование настроек блокировки Basic Auth для nginx
+  copy:
+    src: nginx-auth-fail.conf
+    dest: /etc/fail2ban/filter.d/nginx-auth-fail.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart fail2ban service
+  tags: fail2ban
+
+- name: Применение изменений fail2ban
+  meta: flush_handlers

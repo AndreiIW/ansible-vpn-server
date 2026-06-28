@@ -1,0 +1,43 @@
+---
+
+- name: Установка Nginx
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "nginx"
+  tags: nginx-base-proxy
+
+- name: Удаление дефолтной конфигурации Nginx
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  tags: nginx-base-proxy
+
+- name: Создание конфигурационного файла для прокси
+  template:
+    src: proxy.conf.j2
+    dest: /etc/nginx/sites-available/proxy.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: nginx check config and restart
+  tags: nginx-base-proxy
+
+- name: Активация конфигурации (создание симлинка)
+  file:
+    src: /etc/nginx/sites-available/proxy.conf
+    dest: /etc/nginx/sites-enabled/proxy.conf
+    state: link
+  notify: nginx check config and restart
+  tags: nginx-base-proxy
+
+- name: Запуск и добавление в автозагрузку сервиса nginx
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  tags: nginx-base-proxy
+
+- name: Применение изменений nginx
+  meta: flush_handlers

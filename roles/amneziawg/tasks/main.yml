@@ -1,0 +1,217 @@
+---
+
+- name: Включение форвардинга IPv4
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+  tags: amneziawg
+
+- name: Установка зависимостей для AmneziaWG
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - ca-certificates
+    - gnupg
+    - software-properties-common
+    - iptables
+    - iproute2
+    - qrencode
+    - curl
+    - apt-transport-https
+  tags: amneziawg
+
+- name: Добавление PPA-репозитория AmneziaWG
+  deb822_repository:
+    name: amneziawg
+    types: deb
+    uris: https://ppa.launchpadcontent.net/amnezia/ppa/ubuntu
+    suites: noble
+    components: main
+    signed_by: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x57290828
+    state: present
+  tags: amneziawg
+
+- name: Обновление APT-кэша после добавления репозитория AmneziaWG
+  apt:
+    update_cache: yes
+  tags: amneziawg
+
+- name: Установка AmneziaWG
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - amneziawg-dkms
+    - amneziawg-tools
+  tags: amneziawg
+
+- name: Создание директории для конфигураций AmneziaWG
+  file:
+    path: /etc/amnezia/amneziawg
+    state: directory
+    mode: '0700'
+  tags: amneziawg
+
+- name: Проверка наличия существующего конфигурационного файла awg0.conf
+  stat:
+    path: /etc/amnezia/amneziawg/awg0.conf
+  register: awg_conf_file
+  tags: amneziawg
+
+- name: Генерация ключей сервра
+  block:
+    - name: Генерация приватного ключа сервера
+      command: awg genkey
+      register: new_private_key_gen
+      changed_when: false
+
+    - name: Генерация публичного ключа сервера из приватного
+      shell: "echo '{{ new_private_key_gen.stdout }}' | awg pubkey"
+      register: server_pub_key_gen
+      changed_when: false
+
+    - name: Установка переменных ключей сервера
+      set_fact:
+        server_private_key: "{{ new_private_key_gen.stdout | trim }}"
+        server_public_key: "{{ server_pub_key_gen.stdout | trim }}"
+  when: not awg_conf_file.stat.exists
+  tags: amneziawg
+
+- name: Генерация ключей первого клиента
+  block:
+    - name: Генерация приватного ключа клиента
+      command: awg genkey
+      register: client_priv_key_gen
+      changed_when: false
+
+    - name: Генерация публичного ключа клиента
+      shell: "echo '{{ client_priv_key_gen.stdout }}' | awg pubkey"
+      register: client_pub_key_gen
+      changed_when: false
+
+    - name: Генерация pre-shared ключа клиента
+      shell: awg genpsk
+      register: psk_cmd
+      changed_when: false
+
+    - name: Установка переменных ключей клиента
+      set_fact:
+        client_private_key: "{{ client_priv_key_gen.stdout | trim }}"
+        client_public_key: "{{ client_pub_key_gen.stdout | trim }}"
+        client_preshared_key: "{{ psk_cmd.stdout | trim }}"
+  when: not awg_conf_file.stat.exists
+  tags: amneziawg
+
+- name: Генерация конфигурационных файлов AmneziaWG 
+  block:
+    - name: Инициализация случайных параметров
+      set_fact:
+        awg_port: "{{ range(61000, 65000) | random }}"
+        awg_jc: "{{ range(3, 12) | random }}"
+        awg_jmin: "{{ range(30, 80) | random }}"
+        awg_jmax: "{{ range(600, 1100) | random }}"
+        awg_s1: "{{ range(15, 150) | random }}"
+        awg_s2: "{{ range(15, 150) | random }}"
+        awg_s3: "{{ range(15, 150) | random }}"
+        awg_s4: "{{ range(15, 150) | random }}"
+
+    - name: Генерация диапазона H1
+      set_fact:
+        h1_min: "{{ range(1000, 10000000) | random }}"
+    - set_fact:
+        h1_max: "{{ range((h1_min | int + 100000000), (h1_min | int + 300000000)) | random }}"
+
+    - name: Генерация диапазона H2
+      set_fact:
+        h2_min: "{{ range((h1_max | int + 10000000), (h1_max | int + 60000000)) | random }}"
+    - set_fact:
+        h2_max: "{{ range((h2_min | int + 100000000), (h2_min | int + 300000000)) | random }}"
+
+    - name: Генерация диапазона H3
+      set_fact:
+        h3_min: "{{ range((h2_max | int + 10000000), (h2_max | int + 60000000)) | random }}"
+    - set_fact:
+        h3_max: "{{ range((h3_min | int + 100000000), (h3_min | int + 300000000)) | random }}"
+
+    - name: Генерация диапазона H4
+      set_fact:
+        h4_min: "{{ range((h3_max | int + 10000000), (h3_max | int + 60000000)) | random }}"
+    - set_fact:
+        h4_max: "{{ range((h4_min | int + 100000000), (h4_min | int + 300000000)) | random }}"
+
+    - name: Формируем переменные с случайными диапазонами H1-H4 для AmneziaWG
+      ansible.builtin.set_fact:
+        awg_h1_range: "{{ h1_min }}-{{ h1_max }}"
+        awg_h2_range: "{{ h2_min }}-{{ h2_max }}"
+        awg_h3_range: "{{ h3_min }}-{{ h3_max }}"
+        awg_h4_range: "{{ h4_min }}-{{ h4_max }}"
+
+    - name: Создание файла params
+      template:
+        src: params.j2
+        dest: /etc/amnezia/amneziawg/params
+        mode: '0600'
+
+    - name: Генерация конфигурации сервера
+      template:
+        src: awg0.conf.j2
+        dest: /etc/amnezia/amneziawg/awg0.conf
+        mode: '0600'
+
+    - name: Генерация конфигурации клиента
+      template:
+        src: client.conf.j2
+        dest: "~/awg0-client-client.conf"
+        mode: '0600'
+      become: no
+
+  when: not awg_conf_file.stat.exists
+  tags: amneziawg
+
+- name: Создаём директорию для службы AmneziaWG
+  file:
+    path: "/etc/systemd/system/awg-quick@awg0.service.d"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: amneziawg
+
+- name: Копирую override.conf с загрузкой модуля ядра
+  copy:
+    src: override.conf
+    dest: "/etc/systemd/system/awg-quick@awg0.service.d/override.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+  tags: amneziawg
+
+- name: Создаю службу awg-quick@.service
+  copy:
+    src: awg-quick@.service
+    dest: /usr/lib/systemd/system/awg-quick@.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+  tags: amneziawg
+
+- name: Применение изменений в systemd (daemon-reload)
+  meta: flush_handlers
+  tags: amneziawg
+
+- name: Включаю автозапуск и запускаю сервис AmneziaWG
+  systemd:
+    name: "awg-quick@awg0.service"
+    enabled: true
+    state: started
+  tags: amneziawg

@@ -1,0 +1,10 @@
+---
+- hosts: "servers_vpn"
+  name: "Настройка безопасности сервера"
+  remote_user: "{{ server_user }}"
+  become: yes
+  become_method: sudo
+  roles:
+    - iptables
+    - nginx_ssl_proxy
+    - fail2ban

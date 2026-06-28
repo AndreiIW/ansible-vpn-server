@@ -1,0 +1,139 @@
+---
+
+- name: Установка зависимостей для telemt
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - curl
+    - tar
+    - jq
+    - openssl
+  tags: telemt
+
+- name: Создание группы telemt
+  group:
+    name: "telemt"
+    system: yes
+  tags: telemt
+
+- name: Создание системного пользователя telemt
+  user:
+    name: "telemt"
+    group: "telemt"
+    home: "/opt/telemt"
+    create_home: yes
+    system: yes
+    shell: /usr/sbin/nologin
+  tags: telemt
+
+- name: Создание директории для конфигурации telemt
+  file:
+    path: "/etc/telemt"
+    state: directory
+    owner: "telemt"
+    group: "telemt"
+    mode: '0755'
+  tags: telemt
+
+- name: Проверка наличия бинарного файла telemt
+  stat:
+    path: "/bin/telemt"
+  register: telemt_bin_stat
+  tags: telemt
+
+- name: Получение текущей установленной версии telemt
+  command: "/bin/telemt --version"
+  register: telemt_current_version_cmd
+  failed_when: false
+  changed_when: false
+  when: telemt_bin_stat.stat.exists
+  tags: telemt
+
+- name: Узнаём какая версия установленной telemt
+  set_fact:
+    telemt_current_version: "{{ telemt_current_version_cmd.stdout | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+') }}"
+  when: telemt_bin_stat.stat.exists and telemt_current_version_cmd.rc == 0
+  tags: telemt
+
+- name: Получение информации о последнем релизе с GitHub
+  uri:
+    url: "https://api.github.com/repos/telemt/telemt/releases/latest"
+    return_content: yes
+  register: release_info
+  tags: telemt
+
+- name: Определение целевой версии для установки
+  set_fact:
+    telemt_target_version: "{{ (release_info.json.tag_name | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+')) }}"
+  tags: telemt
+
+- name: Формирование ссылки для скачивания бинарного файла
+  set_fact:
+    telemt_dl_url: "https://github.com/telemt/telemt/releases/download/{{ release_info.json.tag_name }}/telemt-x86_64-linux-gnu.tar.gz"
+  tags: telemt
+
+- name: Скачивание и распаковка Telemt в /bin
+  unarchive:
+    src: "{{ telemt_dl_url }}"
+    dest: "/bin"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  when: >
+    not telemt_bin_stat.stat.exists or
+    telemt_current_version is not defined or
+    telemt_current_version != telemt_target_version
+  notify: restart telemt
+  tags: telemt
+
+- name: Проверка наличия конфигурационного файла telemt.toml
+  stat:
+    path: "/etc/telemt/telemt.toml"
+  register: telemt_config_stat
+  tags: telemt
+
+- name: Создание конфигурации telemt.toml
+  block:
+    - name: Генерация случайного секрета
+      command: openssl rand -hex 16
+      register: telemt_secret_cmd
+
+    - name: Сохранить секрет в переменную
+      set_fact:
+        telemt_actual_secret: "{{ telemt_secret_cmd.stdout }}"
+
+    - name: Создание конфигурации telemt.toml
+      template:
+        src: telemt.toml.j2
+        dest: "/etc/telemt/telemt.toml"
+        owner: "telemt"
+        group: "telemt"
+        mode: '0640'
+      notify: restart telemt
+
+  when: not telemt_config_stat.stat.exists
+  tags: telemt
+
+- name: Создание systemd службы telemt
+  copy:
+    src: telemt.service
+    dest: /etc/systemd/system/telemt.service
+    owner: root
+    group: root
+    mode: '0644'
+  tags: telemt
+  notify:
+    - reload systemd
+    - restart telemt
+
+- name: Запуск и добавление в автозагрузку сервиса telemt
+  systemd:
+    name: telemt
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: telemt

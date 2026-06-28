@@ -1,0 +1,63 @@
+---
+
+- name: Установка необходимых программ.
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - curl
+    - mc
+    - vim
+    - ncdu
+    - bash-completion
+    - tree
+    - net-tools
+    - snapd
+  when: ansible_facts['pkg_mgr']|lower == 'apt'
+
+- name: Включение systemd службы snapd
+  systemd:
+    name: snapd
+    state: started
+    enabled: yes
+
+- name: Добавление пользователя
+  user:
+    name: "{{ server_user }}"
+    shell: /bin/bash
+    groups: adm, sudo
+
+- name: Добавление пользователю публичного ключа
+  authorized_key:
+    user: "{{ server_user }}"
+    state: present
+    key: "{{ lookup('file', server_user_ssh_key_path) }}"
+    comment: Ansible key
+
+- name: Обновление sudoers.d
+  template:
+    src: user.j2
+    dest: "/etc/sudoers.d/{{ server_user }}"
+    owner: root
+    group: root
+    mode: "0440"
+
+- name: Копирование файлов настроек в домашную дерикторию пользователей
+  copy:
+    src: "{{ item.1 }}"
+    dest: "{{ item.0.home }}/{{ item.1 }}"
+    owner: "{{ item.0.user }}"
+    group: "{{ item.0.user }}"
+    mode: "0644"
+  loop: "{{ users | product(files) | list }}"
+  vars:
+    users:
+      - user: "{{ server_user }}"
+        home: "/home/{{ server_user }}"
+      - user: root
+        home: "/root"
+    files:
+      - .bashrc
+      - .vimrc

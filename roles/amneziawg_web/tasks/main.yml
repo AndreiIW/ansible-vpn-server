@@ -1,0 +1,222 @@
+---
+
+- name: Установка зависимостей Web админки AmneziaWG
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    state: latest
+    name: "{{ item }}"
+  loop:
+    - git
+    - curl
+    - build-essential
+    - python3
+    - python3-pip
+    - python3-argon2
+  tags: amneziawg-web
+
+- name: Создание системного пользователя awg-web
+  user:
+    name: awg-web
+    system: yes
+    create_home: no
+    shell: /usr/sbin/nologin
+  tags: amneziawg-web
+
+- name: Создание необходимых директорий
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - { path: "/var/lib/amneziawg-web", owner: "awg-web", group: "awg-web" }
+    - { path: "/etc/amneziawg-web" }
+    - { path: "/etc/amnezia/amneziawg", mode: "0751" } # Добавляем o+x (traverse permission)
+    - { path: "/etc/amnezia/amneziawg/clients", owner: "awg-web", group: "awg-web", mode: "0700" }
+  tags: amneziawg-web
+
+- name: Поиск конфигураций awg*-client-*.conf в домашних директориях
+  find:
+    paths: "/home/{{ ansible_facts.env.SUDO_USER }}"
+    patterns: "awg*-client-*.conf"
+    file_type: file
+  register: found_client_configs
+  tags: amneziawg-web
+
+- name: Миграция обнаруженных конфигураций в системную директорию панели
+  copy:
+    src: "{{ item.path }}"
+    dest: "/etc/amnezia/amneziawg/clients/{{ item.path | basename }}"
+    owner: root
+    group: awg-web
+    mode: '0640'
+    remote_src: yes
+  loop: "{{ found_client_configs.files }}"
+  when: found_client_configs.matched > 0
+  loop_control:
+    label: "{{ item.path }}"
+  notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+- name: Удаление оригинальных конфигурационных файлов после успешной миграции
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ found_client_configs.files }}"
+  when: found_client_configs.matched > 0
+  loop_control:
+    label: "{{ item.path }}"
+  tags: amneziawg-web
+
+- name: Клонирование репозитория amneziawg-install
+  ansible.builtin.git:
+    repo: "https://github.com/wiresock/amneziawg-install.git"
+    dest: "/opt/amneziawg-install"
+    version: "main"
+    force: true
+  register: git_repo
+  tags: amneziawg-web
+
+- name: Устанавливаю свежую версию Rust с помощью официального скрипта rustup
+  ansible.builtin.shell: 
+    cmd: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+    creates: /root/.cargo/bin/cargo
+  environment:
+    RUSTUP_HOME: /root/.rustup
+    CARGO_HOME: /root/.cargo
+  tags: amneziawg-web
+
+- name: Проверяем, существует ли уже скомпилированный бинарный файл
+  ansible.builtin.stat:
+    path: "/opt/amneziawg-install/amneziawg-web/target/release/amneziawg-web"
+  register: ansible_builtin_stat_amneziawg
+  tags: amneziawg-web
+
+- name: Компиляция amneziawg-web (Rust)
+  command:
+    cmd: /root/.cargo/bin/cargo build --release
+    chdir: "/opt/amneziawg-install/amneziawg-web"
+  environment:
+    PATH: "/root/.cargo/bin:{{ ansible_facts.env.PATH }}"
+  when: git_repo.changed or not (ansible_builtin_stat_amneziawg.stat.exists | default(false))
+  tags: amneziawg-web
+
+- name: Установка скомпелированного бинарника amneziawg-web в систему Linux
+  copy:
+    src: "/opt/amneziawg-install/amneziawg-web/target/release/amneziawg-web"
+    dest: /usr/local/bin/amneziawg-web
+    mode: '0755'
+    remote_src: yes
+  notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+- name: Установка скрипта совместимости (lifecycle script)
+  copy:
+    src: "/opt/amneziawg-install/amneziawg-install.sh"
+    dest: /usr/local/bin/amneziawg-install.sh
+    mode: '0755'
+    remote_src: yes
+  tags: amneziawg-web
+
+- name: Настройка Sudoers для amneziawg-web
+  copy:
+    src: amneziawg-web
+    dest: /etc/sudoers.d/amneziawg-web
+    mode: '0440'
+    validate: 'visudo -cf %s'
+  tags: amneziawg-web
+
+- name: Проверка существует ли env.conf с хешем пароля
+  stat:
+    path: /etc/amneziawg-web/env.conf
+  register: env_conf_stat
+  tags: amneziawg-web
+
+- name: Чтение существующего env.conf
+  slurp:
+    src: /etc/amneziawg-web/env.conf
+  register: env_conf_content
+  when: env_conf_stat.stat.exists
+  tags: amneziawg-web
+
+- name: Извлечение текущего хеша пароля
+  set_fact:
+    existing_password_hash: "{{ (env_conf_content.content | b64decode).split('\n') | select('match', '^AUTH_PASSWORD_HASH=') | map('regex_replace', '^AUTH_PASSWORD_HASH=', '') | first | default('') }}"
+  when: env_conf_stat.stat.exists
+  tags: amneziawg-web
+
+- name: Проверка, подходит ли существующий хеш к паролю
+  command:
+    argv:
+      - python3
+      - -c
+      - "import argon2, sys; argon2.PasswordHasher().verify(sys.argv[1], sys.argv[2])"
+      - "{{ existing_password_hash }}"
+      - "{{ amneziawg_web_admin_pass }}"
+  register: password_verify
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: existing_password_hash | default('') | length > 0
+  tags: amneziawg-web
+
+- name: Генерация Argon2-хеша пароля администратора (только если нужен)
+  command:
+    cmd: python3 -c "import argon2; print(argon2.PasswordHasher().hash('{{ amneziawg_web_admin_pass }}'))"
+  register: new_password_hash
+  changed_when: false
+  no_log: true
+  when: >
+    existing_password_hash | default('') | trim | length == 0
+    or password_verify.rc | default(1) != 0
+  tags: amneziawg-web
+
+- name: Установка итогового хеша
+  set_fact:
+    admin_password_hash_final: >-
+      {{
+        new_password_hash.stdout
+        if (
+          new_password_hash is defined
+          and not (new_password_hash.skipped | default(false))
+          and new_password_hash.stdout is defined
+        )
+        else existing_password_hash
+      }}
+  no_log: true
+  tags: amneziawg-web
+
+- name: Создание конфигурационного файла env.conf
+  template:
+    src: env.conf.j2
+    dest: "/etc/amneziawg-web/env.conf"
+    owner: awg-web
+    group: awg-web
+    mode: '0600'
+  notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+- name: Создание файла-маркера расположения скрипта установки
+  copy:
+    src: "installed-awg-script.path"
+    dest: "/etc/amneziawg-web/installed-awg-script.path"
+    mode: '0644'
+  tags: amneziawg-web
+
+- name: Создание конфигурации systemd сервиса
+  template:
+    src: amneziawg-web.service.j2
+    dest: /etc/systemd/system/amneziawg-web.service
+    mode: '0644'
+  notify: Restart amneziawg-web
+  tags: amneziawg-web
+
+- name: Запуск и добавление в автозагрузку сервиса amneziawg-web
+  systemd:
+    name: amneziawg-web
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: amneziawg-web
