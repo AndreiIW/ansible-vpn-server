@@ -38,3 +38,6 @@
     state: started
     enabled: yes
   tags: nginx-base-proxy
+
+- name: Применение изменений nginx
+  meta: flush_handlers

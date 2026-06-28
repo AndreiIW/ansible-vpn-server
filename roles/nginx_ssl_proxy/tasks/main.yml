@@ -22,7 +22,7 @@
     password: "{{ nginx_auth_password }}"
     owner: root
     group: root
-    mode: '0640'
+    mode: '0644'
   tags: nginx_ssl_proxy
 
 - name: Получение текущего IPv4 адреса
@@ -109,13 +109,23 @@
   when: use_certbot
   tags: nginx_ssl_proxy
 
-- name: Копирование конфигурации nginx
+- name: Создание конфигурационного файла для прокси
   template:
     src: proxy.conf.j2
-    dest: /etc/nginx/sites-enabled/proxy.conf
+    dest: /etc/nginx/sites-available/proxy.conf
     owner: root
     group: root
     mode: '0644'
+  notify: nginx check config and restart
   tags: nginx_ssl_proxy
-  notify:
-    - nginx check config and restart
+
+- name: Активация конфигурации (создание симлинка)
+  file:
+    src: /etc/nginx/sites-available/proxy.conf
+    dest: /etc/nginx/sites-enabled/proxy.conf
+    state: link
+  notify: nginx check config and restart
+  tags: nginx_ssl_proxy
+
+- name: Применение изменений nginx
+  meta: flush_handlers
