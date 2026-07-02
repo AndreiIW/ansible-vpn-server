@@ -1,0 +1,16 @@
+---
+
+- name: Перезапускаю systemctl службу nftables
+  service:
+    name: nftables
+    state: restarted
+    enabled: yes
+  listen: restart nftables
+  notify:  restart amneziawg
+
+- name: Перезапускаю systemctl службу AmneziaWG
+  systemd:
+    name: "awg-quick@awg0.service"
+    enabled: true
+    state: restarted
+  listen: restart amneziawg

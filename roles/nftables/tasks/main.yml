@@ -1,0 +1,24 @@
+---
+
+- name: Читаю файл конфигурации AmneziaWG
+  command:
+    cmd: grep '^ListenPort' /etc/amnezia/amneziawg/awg0.conf
+  register: listenport
+  changed_when: false
+  tags: nftables
+
+- name: Извлекаю из конфигурации AmneziaWG рабочий порт
+  set_fact:
+    awg_port: "{{ listenport.stdout | regex_replace('^ListenPort\\s*=\\s*', '') | int }}"
+  tags: nftables
+
+- name: Копирование настроек nftables
+  template:
+    src: nftables.conf.j2
+    dest: "/etc/nftables.conf"
+    mode: '755'
+  notify: restart nftables
+  tags: nftables
+
+- name: Применение изменений nftables
+  meta: flush_handlers

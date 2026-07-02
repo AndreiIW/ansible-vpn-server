@@ -5,6 +5,6 @@
   become: yes
   become_method: sudo
   roles:
-    - iptables
+    - nftables
     - nginx_ssl_proxy
     - fail2ban

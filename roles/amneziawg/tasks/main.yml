@@ -19,7 +19,6 @@
     - ca-certificates
     - gnupg
     - software-properties-common
-    - iptables
     - iproute2
     - qrencode
     - curl
