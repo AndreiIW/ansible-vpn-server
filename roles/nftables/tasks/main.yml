@@ -20,5 +20,5 @@
   notify: restart nftables
   tags: nftables
 
-- name: Применение изменений iptables
+- name: Применение изменений nftables
   meta: flush_handlers

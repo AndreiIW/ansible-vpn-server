@@ -13,14 +13,16 @@ H1 = {{ awg_h1_range }}
 H2 = {{ awg_h2_range }}
 H3 = {{ awg_h3_range }}
 H4 = {{ awg_h4_range }}
-PostUp = iptables -I INPUT -p udp --dport {{ awg_port }} -j ACCEPT
-PostUp = iptables -I FORWARD -i {{ ansible_facts['default_ipv4']['interface'] }} -o awg0 -j ACCEPT
-PostUp = iptables -I FORWARD -i awg0 -j ACCEPT
-PostUp = iptables -t nat -A POSTROUTING -o {{ ansible_facts['default_ipv4']['interface'] }} -j MASQUERADE
-PostDown = iptables -D INPUT -p udp --dport {{ awg_port }} -j ACCEPT
-PostDown = iptables -D FORWARD -i {{ ansible_facts['default_ipv4']['interface'] }} -o awg0 -j ACCEPT
-PostDown = iptables -D FORWARD -i awg0 -j ACCEPT
-PostDown = iptables -t nat -D POSTROUTING -o {{ ansible_facts['default_ipv4']['interface'] }} -j MASQUERADE
+PostUp = nft add table inet awg-awg0
+PostUp = nft add chain inet awg-awg0 input '{ type filter hook input priority 0 ; policy accept ; }'
+PostUp = nft add rule inet awg-awg0 input udp dport {{ awg_port }} accept
+PostUp = nft add chain inet awg-awg0 forward '{ type filter hook forward priority 0 ; policy accept ; }'
+PostUp = nft add rule inet awg-awg0 forward oifname awg0 tcp flags '&' '(syn|rst)' == syn tcp option maxseg size set rt mtu
+PostUp = nft add rule inet awg-awg0 forward iifname awg0 accept
+PostUp = nft add rule inet awg-awg0 forward iifname {{ ansible_facts['default_ipv4']['interface'] }} oifname awg0 accept
+PostUp = nft add chain inet awg-awg0 postrouting '{ type nat hook postrouting priority 100 ; policy accept ; }'
+PostUp = nft add rule inet awg-awg0 postrouting oifname {{ ansible_facts['default_ipv4']['interface'] }} masquerade
+PostDown = nft delete table inet awg-awg0
 
 ### Client client
 [Peer]
