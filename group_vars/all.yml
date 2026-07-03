@@ -30,7 +30,7 @@ amneziawg_web_domain: ""
 # Если получаем SSL сертификат Let's Encrypt на публичный IP адрес и переменная amneziawg_web_domain не заполнена
 # то тогда переменная certbot_email получит значение webmaster@yandex.ru.
 certbot_domain_name: "{{ amneziawg_web_domain }}" 
-certbot_email: "webmaster@{{ amneziawg_web_domain | default('yandex.ru', true) }}"
+certbot_email: "webmaster@{{ amneziawg_web_domain | default('yandex.ru', true) | regex_replace('^[^.]+\\.', '') }}"
 
 # Данные для базовой авторизации nginx.
 nginx_auth_user: "admin"

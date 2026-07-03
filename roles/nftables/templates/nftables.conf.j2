@@ -8,7 +8,7 @@ table inet base.rules {
                 ct state vmap { invalid : drop, established : accept, related : accept } comment "Всё, что уже было разрешено"
                 iifname "lo" accept comment "Разрешаем весь трафик на localhost"
                 ip protocol icmp accept comment "Разрешаю ICMP"
-                iifname "{{ ansible_facts['default_ipv4']['interface'] }}" ct state new tcp dport { 22, 80, 443 } accept comment "Разрешаю входящие порты"
+                iifname "{{ ansible_facts['default_ipv4']['interface'] }}" ct state new tcp dport { 22, 80, 443, 8443 } accept comment "Разрешаю входящие порты"
                 iifname "{{ ansible_facts['default_ipv4']['interface'] }}" ct state new udp dport {{ awg_port }} accept comment "Разрешаю AmneziaWG"
                 reject with icmp type host-prohibited comment "Запрещаем всё остальное"
         }
