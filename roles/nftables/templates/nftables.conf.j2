@@ -1,0 +1,41 @@
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet base.rules {
+        chain input {
+                type filter hook input priority filter; policy accept;
+                ct state vmap { invalid : drop, established : accept, related : accept } comment "Всё, что уже было разрешено"
+                iifname "lo" accept comment "Разрешаем весь трафик на localhost"
+                ip protocol icmp accept comment "Разрешаю ICMP"
+                iifname "{{ ansible_facts['default_ipv4']['interface'] }}" ct state new tcp dport { 22, 80, 443, 8443 } accept comment "Разрешаю входящие порты"
+                iifname "{{ ansible_facts['default_ipv4']['interface'] }}" ct state new udp dport {{ awg_port }} accept comment "Разрешаю AmneziaWG"
+                reject with icmp type host-prohibited comment "Запрещаем всё остальное"
+        }
+}
+
+table inet telemt_limit {
+        chain input {
+                type filter hook input priority filter; policy accept;
+                tcp dport 8443 tcp flags syn / syn,ack ip ttl < 65 meta length 64 meter mtpr_ios size 65535 { ip saddr timeout 1m limit rate 15/second burst 30 packets } accept comment "mtpr_smart_ios_accept"
+                tcp dport 8443 tcp flags syn / syn,ack ip ttl < 65 meta length 64 reject with tcp reset comment "mtpr_smart_ios_reject"
+                tcp dport 8443 tcp flags syn / syn,ack meter mtpr_other size 65535 { ip saddr timeout 1m limit rate 54/minute burst 1 packets } accept comment "mtpr_smart_other_accept"
+                meta nfproto ipv4 tcp dport 8443 tcp flags syn / syn,ack reject with icmp host-unreachable comment "mtpr_smart_other_reject"
+        }
+}
+
+table ip6 filter {
+        chain input {
+                type filter hook input priority filter; policy drop;
+                iifname "lo" accept comment "Разрешаем весь трафик на localhost"
+        }
+
+        chain forward {
+                type filter hook forward priority filter; policy drop;
+        }
+
+        chain output {
+                type filter hook output priority filter; policy drop;
+                oifname "lo"
+        }
+}
